@@ -1668,6 +1668,64 @@
           </select>
         </div>
 
+        <!-- Anti-Bot Verification -->
+        <div style="
+          padding: 16px;
+          background: #f8fafc;
+          border: 2px solid var(--border);
+          border-radius: 8px;
+        ">
+          <label for="resume-captcha" style="display: block; font-size: 0.875rem; font-weight: 600; color: var(--text); margin-bottom: 8px;">
+            Verify you're human: What is <span id="captcha-question"></span>? *
+          </label>
+          <input 
+            type="number" 
+            id="resume-captcha" 
+            required
+            placeholder="Enter the answer"
+            style="
+              width: 100%;
+              padding: 12px 16px;
+              border: 2px solid var(--border);
+              border-radius: 8px;
+              font-size: 0.9375rem;
+              font-family: inherit;
+            "
+          >
+        </div>
+
+        <div style="
+          padding: 16px;
+          background: #dbeafe;
+          border: 2px solid #93c5fd;
+          border-radius: 8px;
+          text-align: center;
+        ">
+          <p style="font-size: 0.875rem; color: var(--text); margin-bottom: 12px; font-weight: 600;">
+            ✓ Preferred: Verify with LinkedIn
+          </p>
+          <p style="font-size: 0.8125rem; color: var(--text-muted); margin-bottom: 12px;">
+            For instant verification, connect with me on LinkedIn and send a message requesting the resume.
+          </p>
+          <a 
+            href="https://www.linkedin.com/in/mahesh-ramanathan-51b9824" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            style="
+              display: inline-block;
+              padding: 8px 16px;
+              background: #0077b5;
+              color: white;
+              text-decoration: none;
+              border-radius: 8px;
+              font-weight: 600;
+              font-size: 0.8125rem;
+            "
+          >
+            Connect on LinkedIn →
+          </a>
+        </div>
+
         <button 
           type="submit" 
           style="
@@ -1757,9 +1815,19 @@
     });
 
     // Resume Request Modal Functions
+    let captchaAnswer = 0;
+    
+    function generateCaptcha() {
+      const num1 = Math.floor(Math.random() * 10) + 1;
+      const num2 = Math.floor(Math.random() * 10) + 1;
+      captchaAnswer = num1 + num2;
+      document.getElementById('captcha-question').textContent = `${num1} + ${num2}`;
+    }
+
     function showResumeModal() {
       document.getElementById('resume-modal').style.display = 'flex';
       document.body.style.overflow = 'hidden';
+      generateCaptcha();
     }
 
     function closeResumeModal() {
@@ -1775,34 +1843,72 @@
       const email = document.getElementById('resume-email').value;
       const company = document.getElementById('resume-company').value;
       const reason = document.getElementById('resume-reason').value;
+      const captchaInput = parseInt(document.getElementById('resume-captcha').value);
       
-      // Log the request (in production, you'd send this to a backend)
+      // Verify CAPTCHA
+      if (captchaInput !== captchaAnswer) {
+        alert('❌ Incorrect answer. Please try again.');
+        generateCaptcha();
+        document.getElementById('resume-captcha').value = '';
+        return;
+      }
+      
+      // Validate email domain (basic check for common disposable email domains)
+      const disposableDomains = ['tempmail', 'throwaway', '10minutemail', 'guerrillamail', 'mailinator'];
+      const emailDomain = email.split('@')[1]?.toLowerCase();
+      if (disposableDomains.some(domain => emailDomain?.includes(domain))) {
+        alert('❌ Please use a professional or personal email address, not a temporary email service.');
+        return;
+      }
+      
+      // Check if email looks professional (has company domain or common providers)
+      const commonProviders = ['gmail', 'yahoo', 'outlook', 'hotmail', 'icloud'];
+      const isCommonProvider = commonProviders.some(provider => emailDomain?.includes(provider));
+      const hasCompany = company && company.trim().length > 0;
+      
+      if (!isCommonProvider && !hasCompany) {
+        const proceed = confirm('⚠️ Your email domain doesn\'t match a known provider. Please confirm this is your professional email, or provide your company name.');
+        if (!proceed) return;
+      }
+      
+      // Log the request
       console.log('Resume Request:', { name, email, company, reason, timestamp: new Date().toISOString() });
       
-      // Store in localStorage for your reference
+      // Store in localStorage
       const requests = JSON.parse(localStorage.getItem('resumeRequests') || '[]');
-      requests.push({ name, email, company, reason, timestamp: new Date().toISOString() });
+      requests.push({ 
+        name, 
+        email, 
+        company, 
+        reason, 
+        timestamp: new Date().toISOString(),
+        verified: true 
+      });
       localStorage.setItem('resumeRequests', JSON.stringify(requests));
       
       // Send notification email to yourself
-      const mailtoLink = `mailto:mahesh.maheshwarr@gmail.com?subject=Resume Download Request from ${encodeURIComponent(name)}&body=${encodeURIComponent(
-        `Resume Download Request:\n\nName: ${name}\nEmail: ${email}\nCompany: ${company || 'Not provided'}\nReason: ${reason}\nTimestamp: ${new Date().toLocaleString()}`
+      const mailtoLink = `mailto:mahesh.maheshwarr@gmail.com?subject=✓ Verified Resume Request from ${encodeURIComponent(name)}&body=${encodeURIComponent(
+        `VERIFIED Resume Download Request:\n\nName: ${name}\nEmail: ${email}\nCompany: ${company || 'Not provided'}\nReason: ${reason}\nTimestamp: ${new Date().toLocaleString()}\n\nThis request passed CAPTCHA verification.`
       )}`;
       
-      // Trigger the download
-      const link = document.createElement('a');
-      link.href = 'Mahesh_Ramanathan_Resume.pdf';
-      link.download = 'Mahesh_Ramanathan_Resume.pdf';
-      link.click();
+      // Show verification message
+      alert('✓ Verification successful! Your download will start shortly.\n\nA notification has been sent to Mahesh with your details.');
+      
+      // Trigger the download after a short delay
+      setTimeout(() => {
+        const link = document.createElement('a');
+        link.href = 'Mahesh_Ramanathan_Resume.pdf';
+        link.download = 'Mahesh_Ramanathan_Resume.pdf';
+        link.click();
+      }, 1000);
       
       // Send notification (opens email client)
       setTimeout(() => {
         window.location.href = mailtoLink;
-      }, 500);
+      }, 1500);
       
-      // Close modal and show success
+      // Close modal
       closeResumeModal();
-      alert('✓ Resume download started! A notification has been sent to Mahesh.');
       
       // Reset form
       e.target.reset();
